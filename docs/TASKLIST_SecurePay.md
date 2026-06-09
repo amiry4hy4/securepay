@@ -261,7 +261,7 @@ Tidak boleh ada dependensi eksternal — hanya Web Crypto API.
 
 ## TASK AM-02 — Halaman Register
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/pages/Register.jsx`
 
 ### Prompt untuk IDE:

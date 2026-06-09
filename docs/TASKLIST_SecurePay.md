@@ -54,7 +54,7 @@ securepay/
 
 ## TASK IL-01 — Setup project React + Vite
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 
 ### Prompt untuk IDE (Cursor / Windsurf / Claude Code):
 
@@ -95,7 +95,7 @@ Simpan state ke localStorage agar tidak hilang saat refresh.
 
 ## TASK IL-02 — AppContext (state global)
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/context/AppContext.jsx`
 
 ### Prompt untuk IDE:
@@ -125,7 +125,7 @@ Export AppContext dan AppProvider.
 
 ## TASK IL-03 — Dashboard & WalletCard
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/pages/Dashboard.jsx`, `src/components/WalletCard.jsx`
 
 ### Prompt untuk IDE:
@@ -156,7 +156,7 @@ Gunakan Tailwind untuk semua styling — tidak boleh ada inline style.
 
 ## TASK IL-04 — TransactionList component
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/components/TransactionList.jsx`
 
 ### Prompt untuk IDE:
@@ -187,7 +187,7 @@ Gunakan Tailwind CSS untuk styling.
 
 ## TASK IL-05 — Integrasi & final review
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 
 ### Checklist manual:
 - [ ] Semua branch di-merge ke `main`
@@ -210,7 +210,7 @@ Gunakan Tailwind CSS untuk styling.
 
 ## TASK AM-01 — Utility crypto.js (shared, dikerjakan Amir)
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/utils/crypto.js`
 
 > ⚠️ File ini dipakai semua anggota. Kerjakan dan commit lebih dulu sebelum yang lain mulai.

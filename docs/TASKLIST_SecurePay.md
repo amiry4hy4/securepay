@@ -311,7 +311,7 @@ Gunakan Tailwind CSS. Import fungsi dari src/utils/crypto.js.
 
 ## TASK AM-03 — Halaman Login + verifikasi hash
 
-**Status:** `[ ]` Belum dikerjakan
+**Status:** `[x]` Belum dikerjakan
 **File:** `src/pages/Login.jsx`
 
 ### Prompt untuk IDE:

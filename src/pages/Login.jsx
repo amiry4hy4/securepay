@@ -173,7 +173,7 @@ export default function Login() {
         }
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch {
       setVerifyStage(0);
       setError('Terjadi kesalahan saat verifikasi. Coba lagi.');
       setIsLoading(false);

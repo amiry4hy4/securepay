@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Login from './pages/Login';
 import Transfer from './pages/Transfer';
 import SecurityFlow from './pages/SecurityFlow';
+import About from './pages/About';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -39,6 +40,9 @@ function Layout({ children }) {
           <div className="flex items-center space-x-6">
             <Link to="/security" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
               Alur Keamanan
+            </Link>
+            <Link to="/about" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              Tentang
             </Link>
             
             {currentUser ? (
@@ -110,6 +114,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/security" element={<SecurityFlow />} />
+          <Route path="/about" element={<About />} />
 
           {/* Protected Routes */}
           <Route 

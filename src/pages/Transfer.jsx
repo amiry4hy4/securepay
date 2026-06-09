@@ -50,6 +50,10 @@ function formatDate(timestamp) {
   }).format(new Date(timestamp));
 }
 
+function wrapHex(hex = '') {
+  return hex.match(/.{1,64}/g)?.join('\n') || '';
+}
+
 function StepStatusIcon({ status }) {
   if (status === 'done') {
     return (
@@ -128,14 +132,117 @@ function DetailBlock({ label, value }) {
   );
 }
 
+function TransferHistoryItem({
+  aesKey,
+  decryptedData,
+  decryptError,
+  expanded,
+  isDecrypting,
+  onDecrypt,
+  onToggle,
+  tx
+}) {
+  const isDebit = tx.type === 'debit';
+  const counterparty = isDebit ? tx.to : tx.from;
+  const amountPrefix = isDebit ? '-' : '+';
+  const amountClass = isDebit ? 'text-red-300' : 'text-emerald-300';
+
+  return (
+    <article className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/65 transition-all duration-300">
+      <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg font-bold ${
+              isDebit
+                ? 'bg-red-500/10 text-red-300'
+                : 'bg-emerald-500/10 text-emerald-300'
+            }`}
+          >
+            {amountPrefix}
+          </span>
+          <div>
+            <p className="font-bold text-white">
+              {isDebit ? `Transfer ke ${counterparty}` : `Transfer dari ${counterparty}`}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">{formatDate(tx.timestamp)}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 md:items-end">
+          <p className={`text-lg font-extrabold ${amountClass}`}>
+            {amountPrefix} Rp {Number(tx.amount || 0).toLocaleString('id-ID')}
+          </p>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-xs font-bold text-blue-200 transition hover:border-blue-400 hover:text-blue-100"
+          >
+            {expanded ? 'Sembunyikan' : 'Lihat data terenkripsi'}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-slate-700 bg-slate-950/80 p-4">
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-300">
+                Payload tersimpan di database (AES-256-CBC):
+              </p>
+              <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-200">
+                {wrapHex(tx.encryptedPayload) || 'N/A'}
+              </pre>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-300">
+                IV (Initialization Vector):
+              </p>
+              <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-200">
+                {tx.iv || 'N/A'}
+              </pre>
+            </div>
+
+            <button
+              type="button"
+              onClick={onDecrypt}
+              disabled={isDecrypting || !aesKey || !tx.encryptedPayload || !tx.iv}
+              className="rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            >
+              {isDecrypting ? 'Mendekripsi...' : 'Dekripsi & lihat data asli'}
+            </button>
+
+            {decryptError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                {decryptError}
+              </div>
+            )}
+
+            {decryptedData && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">
+                  JSON plaintext hasil dekripsi:
+                </p>
+                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 font-mono text-xs leading-5 text-emerald-100">
+                  {decryptedData}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function Transfer() {
   const {
     addTransaction,
     aesKey,
     balance,
     currentUser,
-    updateBalance,
-    users
+    transactions,
+    updateBalance
   } = useContext(AppContext);
 
   const [form, setForm] = useState(initialForm);
@@ -145,11 +252,19 @@ export default function Transfer() {
   const [encryptionVisualStep, setEncryptionVisualStep] = useState(0);
   const [payload, setPayload] = useState(null);
   const [encryptedResult, setEncryptedResult] = useState(null);
+  const [expandedTransactions, setExpandedTransactions] = useState({});
+  const [decryptedTransactions, setDecryptedTransactions] = useState({});
+  const [decryptingTransactions, setDecryptingTransactions] = useState({});
+  const [decryptErrors, setDecryptErrors] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [successSummary, setSuccessSummary] = useState(null);
 
   const amount = useMemo(() => parseAmount(form.amount), [form.amount]);
   const plaintext = payload ? JSON.stringify(payload, null, 2) : '';
+  const transferTransactions = useMemo(
+    () => transactions.filter(tx => tx.type === 'debit' || tx.type === 'credit'),
+    [transactions]
+  );
 
   const updateField = (field, value) => {
     setForm(current => ({ ...current, [field]: value }));
@@ -159,15 +274,10 @@ export default function Transfer() {
   const validateForm = () => {
     const nextErrors = {};
     const recipient = form.recipientUsername.trim();
-    const recipientUser = users.find(
-      user => user.username.toLowerCase() === recipient.toLowerCase()
-    );
 
     if (!recipient) {
       nextErrors.recipientUsername = 'Username penerima wajib diisi.';
-    } else if (!recipientUser) {
-      nextErrors.recipientUsername = 'Username penerima tidak ditemukan.';
-    } else if (recipientUser.username === currentUser.username) {
+    } else if (recipient.toLowerCase() === currentUser.username.toLowerCase()) {
       nextErrors.recipientUsername = 'Tidak bisa transfer ke akun sendiri.';
     }
 
@@ -289,6 +399,48 @@ export default function Transfer() {
     if (completedSteps.includes(index)) return 'done';
     if (activeStep === index) return 'processing';
     return 'pending';
+  };
+
+  const getTransactionKey = tx => tx.id || `${tx.type}-${tx.timestamp}`;
+
+  const toggleTransaction = tx => {
+    const key = getTransactionKey(tx);
+    setExpandedTransactions(current => ({
+      ...current,
+      [key]: !current[key]
+    }));
+  };
+
+  const decryptTransaction = async tx => {
+    const key = getTransactionKey(tx);
+
+    if (decryptedTransactions[key]) return;
+
+    setDecryptingTransactions(current => ({ ...current, [key]: true }));
+    setDecryptErrors(current => ({ ...current, [key]: '' }));
+
+    try {
+      const decrypted = await decryptData(tx.encryptedPayload, tx.iv, aesKey);
+      let displayValue = decrypted;
+
+      try {
+        displayValue = JSON.stringify(JSON.parse(decrypted), null, 2);
+      } catch {
+        displayValue = decrypted;
+      }
+
+      setDecryptedTransactions(current => ({
+        ...current,
+        [key]: displayValue
+      }));
+    } catch (error) {
+      setDecryptErrors(current => ({
+        ...current,
+        [key]: `Dekripsi gagal: ${error.message}`
+      }));
+    } finally {
+      setDecryptingTransactions(current => ({ ...current, [key]: false }));
+    }
   };
 
   return (
@@ -427,6 +579,49 @@ export default function Transfer() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-lg border border-slate-700 bg-slate-800/70 p-6 shadow-xl shadow-slate-950/20">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">
+              Database terenkripsi
+            </p>
+            <h2 className="mt-2 text-xl font-bold text-white">Riwayat transfer</h2>
+          </div>
+          <p className="text-sm text-slate-400">
+            {transferTransactions.length} transaksi debit/kredit
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {transferTransactions.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/50 p-6 text-center">
+              <p className="font-semibold text-slate-300">Belum ada riwayat transfer.</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Setelah transfer berhasil, ciphertext dan IV akan muncul di sini.
+              </p>
+            </div>
+          ) : (
+            transferTransactions.map(tx => {
+              const txKey = getTransactionKey(tx);
+
+              return (
+                <TransferHistoryItem
+                  key={txKey}
+                  aesKey={aesKey}
+                  decryptedData={decryptedTransactions[txKey]}
+                  decryptError={decryptErrors[txKey]}
+                  expanded={!!expandedTransactions[txKey]}
+                  isDecrypting={!!decryptingTransactions[txKey]}
+                  onDecrypt={() => decryptTransaction(tx)}
+                  onToggle={() => toggleTransaction(tx)}
+                  tx={tx}
+                />
+              );
+            })
+          )}
+        </div>
+      </section>
 
       {successSummary && (
         <section className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 p-6">
